@@ -19,21 +19,20 @@
 |------|------|
 | `참조/260527_지침서_v1.1_...pdf` | 문항 출제 공식 지침서 (47쪽). 문항 설계 시 반드시 참조. |
 | `참조/260609_sinnce260605_AI모델의 한국어 능력 평가를 위한 문항 단위 증거 기반 평가 프레임워크_v0.3.pdf` | DDI 이론 기반 문서. 평가 프레임워크 설계 원리. |
-| `참조/ddi_auto_engine.py` | DDI 산출 엔진 v1 (규칙 기반 전용, 참조용). |
 | `참조/ddi_engine_v2.py` | DDI 산출 엔진 v2 원본 (현재 테스트 기준 파일). |
-| `main.py` | **현재 운영 메인 파일** — v2 엔진 그대로, `uvicorn main:app --reload`로 실행. |
-| `참조/sample_items.jsonl` | 문항 입력 샘플 (JSONL 형식). |
-| `참조/ddi_results.jsonl` | DDI 엔진 출력 결과 샘플. |
-| `참조/ddi_demo_output.json` | DDI 데모 실행 결과 (DEMO-L3-EMAIL-001). |
 | `참조/ddi_viewer.html` | DDI 결과 시각화 뷰어. |
-| `converter.py` | 원데이터 → DDI 엔진 입력 변환기. 앵커 자동 생성 포함. |
+| `main.py` | **현재 운영 메인 파일** — FastAPI 서버, `uvicorn main:app --reload`로 실행. |
+| `converter.py` | 워크밴치 원데이터 → DDI 엔진 입력 변환기. 앵커·에러리포트 자동 생성. |
 | `작업지시서_한국어능력평가벤치마크_문항출제.md` | 지침서를 요약한 실무용 작업지시파일. |
+| `README.md` | 실행 방법 및 원데이터 필드 명세. |
+| `scan_answer_types.py` | 폴더 내 answer_type 분포 진단 도구. |
+| `scan_schema.py` | 폴더 내 전체 필드 구조 진단 도구. |
 
 ---
 
 ## DDI (설계난이도지수, Design Difficulty Index)
 
-문항 난이도를 자동으로 수치화하는 핵심 개념. `ddi_auto_engine.py`가 이를 산출.
+문항 난이도를 자동으로 수치화하는 핵심 개념. `main.py`(FastAPI)가 이를 산출.
 
 **10개 구성 요소 (벡터)**
 
@@ -52,7 +51,7 @@
 
 **DDI 점수 → 난이도 매핑**: L1 < 35 / L2: 35~70 / L3 > 70
 
-**엔진 실행 명령 (PowerShell) — main.py 기준**
+**엔진 실행 명령 (PowerShell)**
 ```powershell
 # 패키지 설치 (처음 한 번만)
 pip install fastapi uvicorn openai instructor pydantic
@@ -60,15 +59,8 @@ pip install fastapi uvicorn openai instructor pydantic
 # FastAPI 서버 실행
 uvicorn main:app --reload
 
-# CLI 데모
-python main.py --demo
-
-# 문항 배치 처리
-python main.py --input items.jsonl --output results.jsonl
-python main.py --input items.jsonl --output results.csv --format csv
-
-# 앵커 보정 포함
-python main.py --input items.jsonl --anchors anchors.jsonl --output results.jsonl
+# 원데이터 변환 (워크밴치 JSONL → DDI 엔진 입력)
+python converter.py --input raw_items.jsonl --output items.jsonl
 ```
 
 서버 실행 후 `http://localhost:8000/docs` 에서 API 문서 확인 가능.
