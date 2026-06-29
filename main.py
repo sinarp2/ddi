@@ -184,6 +184,10 @@ class DDIItem:
     domain: str = "general"
     subdomains: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    distractor_rationale: Dict[str, str] = field(default_factory=dict)  # 오답별 해설
+    acceptable_answers: List[str] = field(default_factory=list)          # 단답형 허용 답안
+    unacceptable_answers: List[str] = field(default_factory=list)        # 단답형 불허 답안
+    checkpoints: List[str] = field(default_factory=list)                 # 채점 체크포인트
 
     def __post_init__(self) -> None:
         if not self.item_id:
@@ -244,6 +248,10 @@ class DDIItem:
             domain=str(data.get("domain") or "general").lower(),
             subdomains=[str(x).lower() for x in subdomains],
             metadata=dict(data.get("metadata") or {}),
+            distractor_rationale=dict(data.get("distractor_rationale") or {}),
+            acceptable_answers=[str(x) for x in (data.get("acceptable_answers") or [])],
+            unacceptable_answers=[str(x) for x in (data.get("unacceptable_answers") or [])],
+            checkpoints=[str(x) for x in (data.get("checkpoints") or [])],
         )
 
 
@@ -616,11 +624,20 @@ class KoreanRuleAnalyzer:
             default=0.0,
         )
         score = 0.45 * lexical_sim + 0.35 * length_sim + 0.20 * uniqueness
-        return ComponentScore(clamp(score), 0.75, evidence=[
+        evidence = [
             f"정답-오답 어휘 유사도={lexical_sim:.3f}",
             f"선택지 길이 유사도={length_sim:.3f}",
             f"오답 간 비중복성={uniqueness:.3f}",
-        ])
+        ]
+
+        # 출제자가 오답 해설을 직접 작성한 경우 점수 상향 보정 (신뢰도 제고)
+        if item.distractor_rationale:
+            n_explained = len(item.distractor_rationale)
+            bonus = 0.05 * min(n_explained / max(len(wrong), 1), 1.0)
+            score = clamp(score + bonus)
+            evidence.append(f"출제자 오답 해설 {n_explained}개 → 신뢰도 보정 +{bonus:.3f}")
+
+        return ComponentScore(clamp(score), 0.88 if item.distractor_rationale else 0.75, evidence=evidence)
 
     def _multi_construct(self, item: DDIItem, text: str) -> ComponentScore:
         groups = {
@@ -1134,8 +1151,10 @@ class ItemPayload(BaseModel):
         default="constructed_response",
         description=(
             "문항 유형. "
-            "multiple_choice(객관식), short_answer(단답형), "
-            "constructed_response(서술형), essay(논술형), generation(생성형). "
+            "multiple_choice(객관식) / single_choice·multi_choice도 동일 처리, "
+            "short_answer(단답형) / closed_constructed도 동일 처리, "
+            "constructed_response(폐쇄형 서술형) / open_constructed도 동일 처리, "
+            "essay(논술형), generation(생성형). "
             "객관식은 options와 answer_key 필수."
         ),
         examples=["constructed_response"],
@@ -1190,6 +1209,30 @@ class ItemPayload(BaseModel):
             "panel_scores(dict): 외부 패널 평정 점수 직접 주입 시 사용."
         ),
         examples=[{"requires_external_knowledge": True}],
+    )
+    distractor_rationale: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "오답별 해설. 객관식 문항 전용. "
+            "키는 선택지 기호(①②③④⑤), 값은 해당 오답이 왜 그럴듯한지 출제자 설명. "
+            "제공 시 Ddist(오답 매력도) 점수 신뢰도가 높아짐."
+        ),
+        examples=[{"①": "맞춤법 혼동 유발", "③": "의미상 유사하나 어법 오류"}],
+    )
+    acceptable_answers: List[str] = Field(
+        default_factory=list,
+        description="단답형 허용 답안 목록. 띄어쓰기·문장부호 변이형 포함.",
+        examples=[["가나다", "가 나 다", "가나다."]],
+    )
+    unacceptable_answers: List[str] = Field(
+        default_factory=list,
+        description="단답형 불허 답안 목록. 정답과 혼동될 수 있으나 오답인 표현.",
+        examples=[["가나", "나다"]],
+    )
+    checkpoints: List[str] = Field(
+        default_factory=list,
+        description="채점 체크포인트 목록. 채점자가 반드시 확인해야 할 항목.",
+        examples=[["경어체 사용 여부", "주어-서술어 호응"]],
     )
 
 

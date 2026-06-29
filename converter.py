@@ -1,54 +1,95 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
-원데이터 → DDI 엔진 입력 변환기
+원데이터 -> DDI 엔진 입력 변환기
 =================================
 
 원데이터 JSONL을 DDI 엔진 입력 형식으로 변환하고,
-quality_status가 'approved'인 문항에서 앵커 데이터를 자동 생성한다.
+quality_status가 approved인 문항에서 앵커 데이터를 자동 생성한다.
 
 실행:
-  # 변환만
   python converter.py --input raw_items.jsonl --output items.jsonl
 
-  # 변환 + 앵커 생성
-  python converter.py --input raw_items.jsonl --output items.jsonl --anchors anchors.jsonl
-
-  # DDI 엔진까지 연결해서 한 번에
-  python converter.py --input raw_items.jsonl --output items.jsonl --anchors anchors.jsonl --run-ddi
+앵커 파일은 <output stem>_anchors.jsonl, 에러 리포트는 <output stem>_errors.jsonl 로 자동 생성된다.
+앵커 생성을 끄려면 --no-anchors, 에러 리포트를 끄려면 --no-error-report 옵션을 사용한다.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-# ─────────────────────────────────────────────
-# 도메인 코드 → DDI 엔진 도메인명 매핑
-# ─────────────────────────────────────────────
+class ErrorType:
+    PARSE_ERROR   = "PARSE_ERROR"
+    MISSING_FIELD = "MISSING_FIELD"
+    FORMAT_ERROR  = "FORMAT_ERROR"
+    VALUE_ERROR   = "VALUE_ERROR"
+    CONVERT_ERROR = "CONVERT_ERROR"
+
+
+class ConvertError:
+    def __init__(self, line_no: int, item_id: str, error_type: str, field: str, message: str):
+        self.line_no = line_no
+        self.item_id = item_id
+        self.error_type = error_type
+        self.field = field
+        self.message = message
+
+    def display(self) -> str:
+        return (
+            f"  [{self.error_type}] {self.line_no}행 | item_id={self.item_id} | "
+            f"필드={self.field} | {self.message}"
+        )
+
+
+class ErrorCollector:
+    def __init__(self):
+        self.errors: List[ConvertError] = []
+
+    def add(self, line_no: int, item_id: str, error_type: str, field: str, message: str):
+        err = ConvertError(line_no, item_id, error_type, field, message)
+        self.errors.append(err)
+        print(err.display(), file=sys.stderr)
+
+    def print_summary(self):
+        if not self.errors:
+            print("\n에러 없음 -- 모든 문항 변환 성공")
+            return
+
+        groups: Dict[str, List[ConvertError]] = {}
+        for e in self.errors:
+            groups.setdefault(e.error_type, []).append(e)
+
+        print("\n" + "=" * 60, file=sys.stderr)
+        print(f"에러 요약 -- 총 {len(self.errors)}건", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
+        for etype, errs in sorted(groups.items()):
+            print(f"\n  [{etype}] {len(errs)}건", file=sys.stderr)
+            for e in errs:
+                print(f"    . {e.line_no}행 | {e.item_id} | 필드={e.field} | {e.message}", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
+
 
 DOMAIN_CODE_MAP: Dict[str, str] = {
-    "KOR-D01": "orthography",    # 맞춤법·띄어쓰기
-    "KOR-D02": "honorifics",     # 경어법
-    "KOR-D03": "discourse",      # 문장성분 호응
-    "KOR-D04": "discourse",      # 담화 연결·접속
-    "KOR-D05": "pragmatics",     # 문체/레지스터 전환
-    "KOR-D06": "discourse",      # 문맥 이해도(화시)
-    "KOR-D07": "pragmatics",     # 대화 화행·공손 전략
-    "KOR-D08": "general",        # 관용표현
-    "KOR-D09": "general",        # 유의어
-    "KOR-D10": "archaic",        # 고어
-    "KOR-D11": "dialect",        # 방언
-    "KOR-D12": "general",        # 신조어
-    "KOR-D13": "inference",      # 추론
-    "KOR-D14": "discourse",      # 무형대용어 복원
+    "KOR-D01": "orthography",
+    "KOR-D02": "honorifics",
+    "KOR-D03": "discourse",
+    "KOR-D04": "discourse",
+    "KOR-D05": "pragmatics",
+    "KOR-D06": "discourse",
+    "KOR-D07": "pragmatics",
+    "KOR-D08": "general",
+    "KOR-D09": "general",
+    "KOR-D10": "archaic",
+    "KOR-D11": "dialect",
+    "KOR-D12": "general",
+    "KOR-D13": "inference",
+    "KOR-D14": "discourse",
 }
 
-# 도메인명 → DDI 서브도메인 태그
 DOMAIN_NAME_SUBDOMAINS: Dict[str, List[str]] = {
     "맞춤법·띄어쓰기":    ["orthography"],
     "경어법":            ["honorifics", "pragmatics"],
@@ -68,7 +109,6 @@ DOMAIN_NAME_SUBDOMAINS: Dict[str, List[str]] = {
     "무형대용어":         ["discourse", "anaphora"],
 }
 
-# difficulty_basis 키워드 → 추가 서브도메인
 BASIS_KEYWORD_MAP: Dict[str, List[str]] = {
     "맞춤법":   ["orthography"],
     "띄어쓰기": ["orthography"],
@@ -93,82 +133,149 @@ BASIS_KEYWORD_MAP: Dict[str, List[str]] = {
     "규정":     ["orthography"],
 }
 
-# answer_type → response_type
 RESPONSE_TYPE_MAP: Dict[str, str] = {
-    "single_choice":    "multiple_choice",
-    "multiple_choice":  "multiple_choice",
-    "short_answer":     "short_answer",
+    "single_choice":        "multiple_choice",
+    "multiple_choice":      "multiple_choice",
+    "multi_choice":         "multiple_choice",
+    "short_answer":         "short_answer",
+    "closed_constructed":   "short_answer",
+    "open_constructed":     "constructed_response",
     "constructed_response": "constructed_response",
-    "essay":            "essay",
-    "generation":       "generation",
+    "essay":                "essay",
+    "generation":           "generation",
 }
 
-# 원형 선택지 번호 → 0-based 인덱스
+VALID_RESPONSE_TYPES = set(RESPONSE_TYPE_MAP.keys())
+
 CHOICE_ID_MAP: Dict[str, int] = {
     "①": 0, "②": 1, "③": 2, "④": 3, "⑤": 4,
     "1": 0, "2": 1, "3": 2, "4": 3, "5": 4,
     "A": 0, "B": 1, "C": 2, "D": 3, "E": 4,
 }
 
-# difficulty → expert_ddi 중간값
 DIFFICULTY_DDI_MAP: Dict[str, float] = {
-    "L1": 22.5,   # 0~35 중간
-    "L2": 52.5,   # 35~70 중간
-    "L3": 82.5,   # 70~100 중간
+    "L1": 22.5,
+    "L2": 52.5,
+    "L3": 82.5,
 }
 
+VALID_DIFFICULTIES = set(DIFFICULTY_DDI_MAP.keys())
 
-# ─────────────────────────────────────────────
-# 변환 함수
-# ─────────────────────────────────────────────
+
+def validate_item(raw: Dict[str, Any], line_no: int, collector: ErrorCollector) -> bool:
+    item_id = raw.get("item_id") or f"(line {line_no})"
+    ok = True
+
+    for f in ["item_id", "domain_code", "answer_type", "difficulty"]:
+        if not raw.get(f):
+            collector.add(line_no, item_id, ErrorType.MISSING_FIELD, f,
+                          f"'{f}' 필드가 없거나 비어 있음")
+            ok = False
+
+    domain_code = raw.get("domain_code") or ""
+    if domain_code and domain_code not in DOMAIN_CODE_MAP:
+        collector.add(line_no, item_id, ErrorType.VALUE_ERROR, "domain_code",
+                      f"알 수 없는 도메인 코드: '{domain_code}' (허용값: KOR-D01 ~ KOR-D14)")
+        ok = False
+
+    difficulty = raw.get("difficulty") or ""
+    if difficulty and difficulty not in VALID_DIFFICULTIES:
+        collector.add(line_no, item_id, ErrorType.VALUE_ERROR, "difficulty",
+                      f"알 수 없는 난이도: '{difficulty}' (허용값: L1, L2, L3)")
+        ok = False
+
+    answer_type = raw.get("answer_type") or ""
+    if answer_type and answer_type not in VALID_RESPONSE_TYPES:
+        collector.add(line_no, item_id, ErrorType.VALUE_ERROR, "answer_type",
+                      f"알 수 없는 answer_type: '{answer_type}' "
+                      f"(허용값: {', '.join(sorted(VALID_RESPONSE_TYPES))})")
+        ok = False
+
+    if answer_type in ("single_choice", "multiple_choice"):
+        choices = raw.get("choices")
+        if not choices or not isinstance(choices, list) or len(choices) == 0:
+            collector.add(line_no, item_id, ErrorType.MISSING_FIELD, "choices",
+                          "객관식인데 'choices' 필드가 없거나 비어 있음")
+            ok = False
+        else:
+            for i, c in enumerate(choices):
+                if not isinstance(c, dict):
+                    collector.add(line_no, item_id, ErrorType.FORMAT_ERROR, f"choices[{i}]",
+                                  f"선택지가 dict가 아님: {type(c).__name__}")
+                    ok = False
+                elif not c.get("text"):
+                    collector.add(line_no, item_id, ErrorType.MISSING_FIELD, f"choices[{i}].text",
+                                  f"선택지 {i+1}번의 'text' 필드가 없거나 비어 있음")
+
+        answer = raw.get("answer") or {}
+        choice_id = str(answer.get("choice_id") or "").strip()
+        if not choice_id:
+            collector.add(line_no, item_id, ErrorType.MISSING_FIELD, "answer.choice_id",
+                          "객관식인데 'answer.choice_id'가 없음")
+            ok = False
+        elif choice_id not in CHOICE_ID_MAP:
+            collector.add(line_no, item_id, ErrorType.VALUE_ERROR, "answer.choice_id",
+                          f"인식할 수 없는 choice_id: '{choice_id}' "
+                          f"(허용값: 원문자 1-5 또는 숫자 1-5 또는 A-E)")
+            ok = False
+
+    if not raw.get("user_prompt") and not raw.get("task_instruction"):
+        collector.add(line_no, item_id, ErrorType.MISSING_FIELD, "user_prompt",
+                      "'user_prompt' 또는 'task_instruction' 중 하나는 있어야 함")
+
+    return ok
+
 
 def extract_subdomains(raw: Dict[str, Any]) -> List[str]:
-    """domain_name + difficulty_basis에서 서브도메인 태그 추출."""
     subdomains: List[str] = []
-
-    # domain_name 기반
     domain_name = raw.get("domain_name") or ""
     for key, tags in DOMAIN_NAME_SUBDOMAINS.items():
         if key in domain_name:
             subdomains.extend(tags)
-
-    # difficulty_basis 기반
     basis = raw.get("difficulty_basis") or ""
     for keyword, tags in BASIS_KEYWORD_MAP.items():
         if keyword in basis:
             subdomains.extend(tags)
-
-    return list(dict.fromkeys(subdomains))  # 중복 제거, 순서 유지
+    return list(dict.fromkeys(subdomains))
 
 
 def extract_options(raw: Dict[str, Any]) -> List[str]:
-    """choices 리스트에서 선택지 텍스트 추출."""
     choices = raw.get("choices") or []
     return [c.get("text", "") for c in choices if isinstance(c, dict)]
 
 
 def extract_answer_key(raw: Dict[str, Any]) -> Optional[int]:
-    """answer.choice_id를 0-based 인덱스로 변환."""
     answer = raw.get("answer") or {}
     choice_id = str(answer.get("choice_id") or "").strip()
     return CHOICE_ID_MAP.get(choice_id)
 
 
 def extract_rubric(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """rubric 필드 변환. 원데이터가 null이면 빈 리스트."""
     rubric = raw.get("rubric")
     if not rubric:
         return []
     if isinstance(rubric, list):
+        n = len(rubric)
         result = []
         for i, r in enumerate(rubric):
-            if isinstance(r, dict):
-                result.append({
-                    "id": r.get("id") or f"RB{i+1}",
-                    "name": r.get("name") or r.get("criteria") or f"채점기준{i+1}",
-                    "weight": float(r.get("weight") or (1.0 / len(rubric))),
-                    "criteria": r.get("criteria") or r.get("description") or "",
-                })
+            if not isinstance(r, dict):
+                continue
+            # 워크밴치: criterion/score 필드 / 구형: name/criteria/weight 필드
+            name = r.get("name") or r.get("criterion") or f"채점기준{i+1}"
+            criteria = r.get("criteria") or r.get("description") or r.get("criterion") or ""
+            raw_weight = r.get("weight") or r.get("score")
+            weight = float(raw_weight) if raw_weight is not None else (1.0 / n)
+            result.append({
+                "id": r.get("id") or f"RB{i+1}",
+                "name": name,
+                "weight": weight,
+                "criteria": criteria,
+            })
+        # score 기반이면 합계로 정규화
+        total = sum(r["weight"] for r in result)
+        if total > 0 and not (0.99 < total < 1.01):
+            for r in result:
+                r["weight"] = round(r["weight"] / total, 6)
         return result
     if isinstance(rubric, str) and rubric.strip():
         return [{"id": "RB1", "name": "채점 기준", "weight": 1.0, "criteria": rubric}]
@@ -176,12 +283,9 @@ def extract_rubric(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def convert_item(raw: Dict[str, Any]) -> Dict[str, Any]:
-    """원데이터 단일 문항을 DDI 엔진 입력 형식으로 변환."""
     domain_code = raw.get("domain_code") or ""
     domain = DOMAIN_CODE_MAP.get(domain_code, "general")
-    response_type = RESPONSE_TYPE_MAP.get(
-        raw.get("answer_type") or "", "constructed_response"
-    )
+    response_type = RESPONSE_TYPE_MAP.get(raw.get("answer_type") or "", "constructed_response")
     is_mcq = response_type == "multiple_choice"
 
     item: Dict[str, Any] = {
@@ -189,7 +293,7 @@ def convert_item(raw: Dict[str, Any]) -> Dict[str, Any]:
         "domain": domain,
         "subdomains": extract_subdomains(raw),
         "response_type": response_type,
-        "passage": raw.get("context") or "",
+        "passage": (raw.get("context") or {}).get("passage") if isinstance(raw.get("context"), dict) else (raw.get("context") or ""),
         "question": raw.get("user_prompt") or raw.get("task_instruction") or "",
         "rationale": raw.get("explanation") or "",
         "rubric": extract_rubric(raw),
@@ -206,22 +310,28 @@ def convert_item(raw: Dict[str, Any]) -> Dict[str, Any]:
     if is_mcq:
         item["options"] = extract_options(raw)
         item["answer_key"] = extract_answer_key(raw)
+        if raw.get("distractor_rationale"):
+            item["distractor_rationale"] = raw["distractor_rationale"]
+
+    if response_type == "short_answer":
+        if raw.get("acceptable_answers"):
+            item["acceptable_answers"] = raw["acceptable_answers"]
+        if raw.get("unacceptable_answers"):
+            item["unacceptable_answers"] = raw["unacceptable_answers"]
+
+    if raw.get("checkpoints"):
+        item["checkpoints"] = raw["checkpoints"]
 
     return item
 
 
 def convert_to_anchor(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    quality_status='approved'인 문항에서 앵커 레코드 생성.
-    difficulty → expert_ddi 중간값으로 변환.
-    """
     if raw.get("quality_status") != "approved":
         return None
     difficulty = raw.get("difficulty") or ""
     expert_ddi = DIFFICULTY_DDI_MAP.get(difficulty)
     if expert_ddi is None:
         return None
-
     domain_code = raw.get("domain_code") or ""
     return {
         "item_id": raw.get("item_id") or "",
@@ -229,25 +339,21 @@ def convert_to_anchor(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "difficulty": difficulty,
         "difficulty_basis": raw.get("difficulty_basis") or "",
         "expert_ddi": expert_ddi,
-        # ddi_clean은 DDI 엔진 실행 후 채워짐 (지금은 placeholder)
         "ddi_clean": None,
     }
 
 
-# ─────────────────────────────────────────────
-# JSONL 입출력
-# ─────────────────────────────────────────────
-
-def load_jsonl(path: Path) -> List[Dict[str, Any]]:
+def load_jsonl(path: Path, collector: ErrorCollector) -> List[tuple]:
     rows = []
     with path.open("r", encoding="utf-8-sig") as f:
         for line_no, line in enumerate(f, 1):
             if not line.strip():
                 continue
             try:
-                rows.append(json.loads(line))
+                rows.append((line_no, json.loads(line)))
             except json.JSONDecodeError as exc:
-                print(f"  경고: {path} {line_no}행 파싱 오류 — {exc}", file=sys.stderr)
+                collector.add(line_no, f"(line {line_no})", ErrorType.PARSE_ERROR,
+                              "(raw)", f"JSON 파싱 실패: {exc}")
     return rows
 
 
@@ -258,65 +364,70 @@ def save_jsonl(path: Path, rows: List[Dict[str, Any]]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-# ─────────────────────────────────────────────
-# 메인
-# ─────────────────────────────────────────────
-
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="원데이터 → DDI 엔진 입력 변환기")
-    parser.add_argument("--input",   type=Path, required=True, help="원데이터 JSONL 파일")
-    parser.add_argument("--output",  type=Path, required=True, help="DDI 엔진 입력 JSONL 출력 경로")
-    parser.add_argument("--anchors", type=Path, help="앵커 데이터 출력 경로 (approved 문항만)")
-    parser.add_argument("--run-ddi", action="store_true", help="변환 후 DDI 엔진(main.py) 자동 실행")
-    parser.add_argument("--ddi-output", type=Path, help="DDI 결과 출력 경로 (--run-ddi 시 사용)")
+    parser = argparse.ArgumentParser(description="원데이터 -> DDI 엔진 입력 변환기")
+    parser.add_argument("--input",           type=Path, required=True, help="원데이터 JSONL 파일")
+    parser.add_argument("--output",          type=Path, required=True, help="DDI 엔진 입력 JSONL 출력 경로")
+    parser.add_argument("--no-anchors",      action="store_true", help="앵커 자동 생성 비활성화")
+    parser.add_argument("--no-error-report", action="store_true", help="에러 리포트 자동 생성 비활성화")
+    parser.add_argument("--strict",          action="store_true",
+                        help="검증 실패 문항은 변환 결과에서 제외 (기본: 경고만 출력하고 변환 진행)")
     args = parser.parse_args(argv)
 
-    print(f"읽는 중: {args.input}")
-    raw_items = load_jsonl(args.input)
-    print(f"  총 {len(raw_items)}개 문항 로드")
+    anchors_path = None if args.no_anchors else args.output.parent / (args.output.stem + "_anchors.jsonl")
+    error_report_path = None if args.no_error_report else args.output.parent / (args.output.stem + "_errors.jsonl")
 
-    # 변환
-    converted, skipped = [], []
-    for raw in raw_items:
+    collector = ErrorCollector()
+
+    print(f"읽는 중: {args.input}")
+    raw_pairs = load_jsonl(args.input, collector)
+    print(f"  총 {len(raw_pairs)}개 문항 로드")
+
+    converted: List[Dict[str, Any]] = []
+    error_raws: List[Dict[str, Any]] = []
+
+    print("\n검증 및 변환 중...")
+    for line_no, raw in raw_pairs:
+        is_valid = validate_item(raw, line_no, collector)
+
+        if not is_valid and args.strict:
+            error_raws.append(raw)
+            continue
+
         try:
             converted.append(convert_item(raw))
+            if not is_valid:
+                error_raws.append(raw)
         except Exception as exc:
-            item_id = raw.get("item_id") or "UNKNOWN"
-            skipped.append(item_id)
-            print(f"  경고: [{item_id}] 변환 실패 — {exc}", file=sys.stderr)
+            item_id = raw.get("item_id") or f"(line {line_no})"
+            collector.add(line_no, item_id, ErrorType.CONVERT_ERROR, "(변환 전체)",
+                          f"예상치 못한 예외: {type(exc).__name__}: {exc}")
+            error_raws.append(raw)
 
     save_jsonl(args.output, converted)
-    print(f"변환 완료: {len(converted)}개 → {args.output}")
+    print(f"\n변환 완료: {len(converted)}개 -> {args.output}")
+
+    skipped = len(raw_pairs) - len(converted)
     if skipped:
-        print(f"  건너뜀: {len(skipped)}개 ({', '.join(skipped[:5])}{'...' if len(skipped) > 5 else ''})")
+        print(f"  건너뜀: {skipped}개 (--strict 모드 검증 실패)")
 
-    # 앵커 생성
-    if args.anchors:
-        anchors = [a for raw in raw_items if (a := convert_to_anchor(raw)) is not None]
-        save_jsonl(args.anchors, anchors)
-        print(f"앵커 생성: {len(anchors)}개 (approved 문항) → {args.anchors}")
+    if error_report_path and error_raws:
+        save_jsonl(error_report_path, error_raws)
+        print(f"  에러/경고 문항 원본: {len(error_raws)}개 -> {error_report_path}")
 
-        # difficulty별 분포 출력
+    collector.print_summary()
+
+    if anchors_path:
+        anchors = [a for _, raw in raw_pairs if (a := convert_to_anchor(raw)) is not None]
+        save_jsonl(anchors_path, anchors)
+        print(f"\n앵커 생성: {len(anchors)}개 (approved 문항) -> {anchors_path}")
         dist: Dict[str, int] = {}
         for a in anchors:
             dist[a["difficulty"]] = dist.get(a["difficulty"], 0) + 1
         for level, count in sorted(dist.items()):
             print(f"  {level}: {count}개 (expert_ddi={DIFFICULTY_DDI_MAP.get(level, '?')})")
 
-    # DDI 엔진 자동 실행
-    if args.run_ddi:
-        ddi_out = args.ddi_output or args.output.parent / "ddi_results.jsonl"
-        cmd = [sys.executable, "main.py", "--input", str(args.output), "--output", str(ddi_out)]
-        if args.anchors:
-            cmd += ["--anchors", str(args.anchors)]
-        print(f"\nDDI 엔진 실행 중: {' '.join(cmd)}")
-        result = subprocess.run(cmd)
-        if result.returncode != 0:
-            print("DDI 엔진 실행 실패", file=sys.stderr)
-            return result.returncode
-        print(f"DDI 결과 → {ddi_out}")
-
-    return 0
+    return 1 if collector.errors else 0
 
 
 if __name__ == "__main__":
