@@ -15,11 +15,51 @@
 
 ## 핵심 참조 파일
 
-- `참조/260527_지침서_v1.1_한국어 능력 평가 벤치마크 문항 출제 지침_권태현(0527)_김성숙.pdf`  
-  → 문항 출제의 모든 규칙이 담긴 공식 지침서 (47쪽). 문항 설계 시 반드시 참조.
+| 파일 | 설명 |
+|------|------|
+| `참조/260527_지침서_v1.1_...pdf` | 문항 출제 공식 지침서 (47쪽). 문항 설계 시 반드시 참조. |
+| `참조/260609_sinnce260605_AI모델의 한국어 능력 평가를 위한 문항 단위 증거 기반 평가 프레임워크_v0.3.pdf` | DDI 이론 기반 문서. 평가 프레임워크 설계 원리. |
+| `참조/ddi_auto_engine.py` | DDI 자동 산출 Python 스크립트 (단일 파일 구현). |
+| `참조/sample_items.jsonl` | 문항 입력 샘플 (JSONL 형식). |
+| `참조/ddi_results.jsonl` | DDI 엔진 출력 결과 샘플. |
+| `참조/ddi_demo_output.json` | DDI 데모 실행 결과 (DEMO-L3-EMAIL-001). |
+| `참조/ddi_viewer.html` | DDI 결과 시각화 뷰어. |
+| `작업지시서_한국어능력평가벤치마크_문항출제.md` | 지침서를 요약한 실무용 작업지시파일. |
 
-- `작업지시서_한국어능력평가벤치마크_문항출제.md`  
-  → 지침서를 요약한 실무용 작업지시파일.
+---
+
+## DDI (설계난이도지수, Design Difficulty Index)
+
+문항 난이도를 자동으로 수치화하는 핵심 개념. `ddi_auto_engine.py`가 이를 산출.
+
+**10개 구성 요소 (벡터)**
+
+| 코드 | 의미 |
+|------|------|
+| R | Reasoning — 추론 단계 수·복잡도 |
+| C | Context — 맥락 의존도 |
+| K | Korean-specificity — 한국어 특성 부하량 |
+| P | Pragmatics — 화용·사회언어학 부하량 |
+| E | External knowledge — 외부 지식 의존도 |
+| O | Openness — 응답 개방성 |
+| X | Constraint complexity — 제약 조건 복잡도 |
+| Ddist | Distractor plausibility — 오답 매력도 (객관식만) |
+| M | Multi-construct integration — 다중 구인 결합도 |
+| Q | Question clarity — 문항 명료도 |
+
+**DDI 점수 → 난이도 매핑**: L1 < 35 / L2: 35~70 / L3 > 70
+
+**엔진 실행 명령 (PowerShell)**
+```powershell
+# 데모 실행
+python .\참조\ddi_auto_engine.py --demo
+
+# 문항 일괄 처리
+python .\참조\ddi_auto_engine.py --input .\참조\sample_items.jsonl --output .\참조\ddi_results.jsonl
+
+# CSV로 출력
+python .\참조\ddi_auto_engine.py --input .\참조\sample_items.jsonl --output .\참조\ddi_results.csv --format csv
+```
 
 ---
 
