@@ -91,3 +91,13 @@ python converter.py --input raw_items.jsonl --output items.jsonl
 - 모든 소통은 **한국어**로
 - 설명은 쉽고 구체적으로 (사용자가 Claude Code 입문자)
 - 새 파일 생성 전 기존 파일 수정을 먼저 검토
+
+---
+
+## TODO (지침서 검토 후 도출)
+
+지침서 PDF(260527_지침서_v1.1) 전체 검토 결과 확인된 개선 항목.
+
+- [ ] **Ddist 로직 개선** — 지침서에 L1/L2/L3별 오답 설계 원칙이 명시되어 있음. GPU 서버(Qwen) 투입 시 `distractor_rationale` + 난이도를 활용해 Ddist 점수 산출 정교화 필요. 현재는 rationale 유무로만 보정.
+- [ ] **단답형 허용 답안 최소 3개 검증** — 지침서 기준: `acceptable_answers`는 변이형 포함 최소 3개 이상 권장. converter.py 또는 main.py 검증 로직 추가 검토.
+- [ ] **GPU 서버 연동** — 현재 main.py는 OpenAI 호환 API 연동 구조이나 실제로는 규칙 기반 fallback만 동작. Qwen 모델 서버 투입 시 LLM 기반 DDI 산출로 전환 필요.

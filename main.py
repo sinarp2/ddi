@@ -1446,6 +1446,10 @@ async def measure_ddi(payload: ItemPayload) -> DDIResponse:
             domain=payload.domain,
             subdomains=payload.subdomains,
             metadata=payload.metadata,
+            distractor_rationale=payload.distractor_rationale,
+            acceptable_answers=payload.acceptable_answers,
+            unacceptable_answers=payload.unacceptable_answers,
+            checkpoints=payload.checkpoints,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

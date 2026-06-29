@@ -19,17 +19,22 @@ uvicorn main:app --reload
 워크밴치 원데이터 JSONL → DDI 엔진 입력 형식으로 변환.
 
 ```powershell
-python converter.py --input raw_items.jsonl --output items.jsonl
+# 단일 파일
+python converter.py --input raw_items.jsonl
+
+# 폴더 일괄 처리 (폴더 내 모든 .jsonl 변환)
+python converter.py --dir ./raw --output-dir ./params
 ```
 
-자동 생성 파일:
-- `items.jsonl` — DDI 엔진 입력용
-- `items_anchors.jsonl` — approved 문항 앵커 (보정용)
-- `items_errors.jsonl` — 에러/경고 문항 원본
+출력 파일명은 원본 파일명에 `_params` 접미사가 자동으로 붙습니다:
+- `{name}_params.jsonl` — DDI 엔진 입력용
+- `{name}_params_anchors.jsonl` — approved 문항 앵커 (보정용)
+- `{name}_params_errors.jsonl` — 에러/경고 문항 원본
 
 옵션:
 | 옵션 | 설명 |
 |------|------|
+| `--output-dir` | 출력 폴더 지정 (기본: 입력과 같은 폴더) |
 | `--no-anchors` | 앵커 파일 생성 안 함 |
 | `--no-error-report` | 에러 리포트 생성 안 함 |
 | `--strict` | 검증 실패 문항 변환 결과에서 제외 |
@@ -91,6 +96,33 @@ python converter.py --input raw_items.jsonl --output items.jsonl
 | `turns` | list[object] | 대화형 문항의 턴 목록 |
 | `turns[].role` | str | 발화자 역할 |
 | `turns[].content` | str | 발화 내용 |
+
+---
+
+## 배치 호출기 실행
+
+컨버터 출력(`*_params.jsonl`)을 DDI 엔진 API에 일괄 전송.
+
+```powershell
+# 서버 먼저 실행 (별도 터미널)
+uvicorn main:app --reload
+
+# 단일 파일
+python ddi_batch_caller.py --input items_params.jsonl
+
+# 폴더 일괄 처리 (폴더 내 모든 *_params.jsonl 처리)
+python ddi_batch_caller.py --dir ./params --output-dir ./results
+```
+
+결과 파일명은 `_params` 대신 `_results`가 붙습니다:
+- `{name}_results.jsonl` — DDI 점수 결과
+
+옵션:
+| 옵션 | 설명 |
+|------|------|
+| `--output-dir` | 결과 출력 폴더 (기본: 입력과 같은 폴더) |
+| `--concurrency` | 동시 API 호출 수 (기본: 1) |
+| `--api-url` | API 서버 주소 (기본: `http://localhost:8000/api/v1/measure-ddi`) |
 
 ---
 

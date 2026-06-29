@@ -191,7 +191,7 @@ def validate_item(raw: Dict[str, Any], line_no: int, collector: ErrorCollector) 
                       f"(허용값: {', '.join(sorted(VALID_RESPONSE_TYPES))})")
         ok = False
 
-    if answer_type in ("single_choice", "multiple_choice"):
+    if answer_type in ("single_choice", "multiple_choice", "multi_choice"):
         choices = raw.get("choices")
         if not choices or not isinstance(choices, list) or len(choices) == 0:
             collector.add(line_no, item_id, ErrorType.MISSING_FIELD, "choices",
@@ -364,36 +364,31 @@ def save_jsonl(path: Path, rows: List[Dict[str, Any]]) -> None:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="원데이터 -> DDI 엔진 입력 변환기")
-    parser.add_argument("--input",           type=Path, required=True, help="원데이터 JSONL 파일")
-    parser.add_argument("--output",          type=Path, required=True, help="DDI 엔진 입력 JSONL 출력 경로")
-    parser.add_argument("--no-anchors",      action="store_true", help="앵커 자동 생성 비활성화")
-    parser.add_argument("--no-error-report", action="store_true", help="에러 리포트 자동 생성 비활성화")
-    parser.add_argument("--strict",          action="store_true",
-                        help="검증 실패 문항은 변환 결과에서 제외 (기본: 경고만 출력하고 변환 진행)")
-    args = parser.parse_args(argv)
+def process_file(
+    input_path: Path,
+    output_dir: Path,
+    no_anchors: bool,
+    no_error_report: bool,
+    strict: bool,
+    collector: ErrorCollector,
+) -> None:
+    stem = input_path.stem
+    out_path          = output_dir / f"{stem}_params.jsonl"
+    anchors_path      = None if no_anchors      else output_dir / f"{stem}_params_anchors.jsonl"
+    error_report_path = None if no_error_report else output_dir / f"{stem}_params_errors.jsonl"
 
-    anchors_path = None if args.no_anchors else args.output.parent / (args.output.stem + "_anchors.jsonl")
-    error_report_path = None if args.no_error_report else args.output.parent / (args.output.stem + "_errors.jsonl")
-
-    collector = ErrorCollector()
-
-    print(f"읽는 중: {args.input}")
-    raw_pairs = load_jsonl(args.input, collector)
+    print(f"\n읽는 중: {input_path}")
+    raw_pairs = load_jsonl(input_path, collector)
     print(f"  총 {len(raw_pairs)}개 문항 로드")
 
     converted: List[Dict[str, Any]] = []
     error_raws: List[Dict[str, Any]] = []
 
-    print("\n검증 및 변환 중...")
     for line_no, raw in raw_pairs:
         is_valid = validate_item(raw, line_no, collector)
-
-        if not is_valid and args.strict:
+        if not is_valid and strict:
             error_raws.append(raw)
             continue
-
         try:
             converted.append(convert_item(raw))
             if not is_valid:
@@ -404,8 +399,8 @@ def main(argv=None) -> int:
                           f"예상치 못한 예외: {type(exc).__name__}: {exc}")
             error_raws.append(raw)
 
-    save_jsonl(args.output, converted)
-    print(f"\n변환 완료: {len(converted)}개 -> {args.output}")
+    save_jsonl(out_path, converted)
+    print(f"  변환 완료: {len(converted)}개 -> {out_path}")
 
     skipped = len(raw_pairs) - len(converted)
     if skipped:
@@ -413,20 +408,50 @@ def main(argv=None) -> int:
 
     if error_report_path and error_raws:
         save_jsonl(error_report_path, error_raws)
-        print(f"  에러/경고 문항 원본: {len(error_raws)}개 -> {error_report_path}")
-
-    collector.print_summary()
+        print(f"  에러/경고 원본: {len(error_raws)}개 -> {error_report_path}")
 
     if anchors_path:
         anchors = [a for _, raw in raw_pairs if (a := convert_to_anchor(raw)) is not None]
         save_jsonl(anchors_path, anchors)
-        print(f"\n앵커 생성: {len(anchors)}개 (approved 문항) -> {anchors_path}")
-        dist: Dict[str, int] = {}
-        for a in anchors:
-            dist[a["difficulty"]] = dist.get(a["difficulty"], 0) + 1
-        for level, count in sorted(dist.items()):
-            print(f"  {level}: {count}개 (expert_ddi={DIFFICULTY_DDI_MAP.get(level, '?')})")
+        print(f"  앵커: {len(anchors)}개 -> {anchors_path}")
 
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="원데이터 -> DDI 엔진 입력 변환기")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--input",  type=Path, help="원데이터 JSONL 파일 (단일)")
+    group.add_argument("--dir",    type=Path, help="원데이터 JSONL 폴더 (일괄 처리)")
+    parser.add_argument("--output-dir",      type=Path, default=None,
+                        help="출력 폴더 (기본: --input 파일과 같은 폴더 / --dir 지정 시 같은 폴더)")
+    parser.add_argument("--no-anchors",      action="store_true", help="앵커 자동 생성 비활성화")
+    parser.add_argument("--no-error-report", action="store_true", help="에러 리포트 자동 생성 비활성화")
+    parser.add_argument("--strict",          action="store_true",
+                        help="검증 실패 문항은 변환 결과에서 제외")
+    args = parser.parse_args(argv)
+
+    if args.dir:
+        input_files = sorted(args.dir.glob("*.jsonl"))
+        # _params / _anchors / _errors 파일은 재처리 제외
+        input_files = [f for f in input_files
+                       if not any(f.stem.endswith(s) for s in ("_params", "_params_anchors", "_params_errors"))]
+        if not input_files:
+            print(f"처리할 JSONL 파일 없음: {args.dir}", file=sys.stderr)
+            return 1
+        output_dir = args.output_dir or args.dir
+    else:
+        input_files = [args.input]
+        output_dir = args.output_dir or args.input.parent
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    collector = ErrorCollector()
+
+    print(f"출력 폴더: {output_dir}")
+    print(f"처리 대상: {len(input_files)}개 파일")
+
+    for input_path in input_files:
+        process_file(input_path, output_dir, args.no_anchors, args.no_error_report, args.strict, collector)
+
+    collector.print_summary()
     return 1 if collector.errors else 0
 
 
