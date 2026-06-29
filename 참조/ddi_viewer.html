@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>DDI 결과 뷰어</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Malgun Gothic', sans-serif; background: #f5f6fa; color: #222; }
+
+  header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header span { font-size: 13px; color: #aaa; }
+
+  .drop-zone {
+    margin: 32px auto;
+    max-width: 640px;
+    border: 2px dashed #aaa;
+    border-radius: 12px;
+    padding: 48px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #4f8ef7;
+    background: #f0f5ff;
+  }
+  .drop-zone p { color: #666; margin-top: 8px; font-size: 14px; }
+  .drop-zone .icon { font-size: 40px; }
+  #file-input { display: none; }
+
+  .stats {
+    display: flex;
+    gap: 12px;
+    padding: 0 24px 16px;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 20px;
+    min-width: 120px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 2px; }
+  .stat-card.success .value { color: #22a06b; }
+  .stat-card.error .value { color: #e53e3e; }
+  .stat-card.info .value { color: #4f8ef7; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    padding: 0 24px 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .controls input[type=text] {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 14px;
+    width: 220px;
+  }
+  .controls select {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+  .controls label { font-size: 13px; color: #555; }
+
+  .table-wrap {
+    padding: 0 24px 32px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 13px;
+  }
+  th {
+    background: #1a1a2e;
+    color: #ccc;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  th:hover { color: #fff; }
+  th .sort-icon { margin-left: 4px; opacity: 0.5; }
+  th.sorted .sort-icon { opacity: 1; color: #4f8ef7; }
+  td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8f9ff; }
+  tr.error-row td { background: #fff5f5; }
+  tr.error-row:hover td { background: #ffe8e8; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.success { background: #e6f7f0; color: #22a06b; }
+  .badge.error { background: #fff0f0; color: #e53e3e; }
+  .badge.exception { background: #fff3cd; color: #856404; }
+  .badge.L1 { background: #e8f4fd; color: #2563eb; }
+  .badge.L2 { background: #fef3c7; color: #d97706; }
+  .badge.L3 { background: #fde8e8; color: #dc2626; }
+
+  .ddi-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ddi-bar .bar-bg {
+    width: 80px;
+    height: 6px;
+    background: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ddi-bar .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #22a06b, #f59e0b, #ef4444);
+  }
+
+  .detail-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    color: #555;
+  }
+  .detail-btn:hover { background: #f0f0f0; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 700px;
+    width: 95%;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal h2 { font-size: 16px; margin-bottom: 16px; color: #1a1a2e; }
+  .modal pre {
+    background: #f5f6fa;
+    border-radius: 6px;
+    padding: 14px;
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .modal-close {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #888;
+    line-height: 1;
+  }
+
+  #no-data { display: none; text-align: center; padding: 40px; color: #888; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DDI 결과 뷰어</h1>
+  <span id="header-info"></span>
+  <button id="open-btn" style="display:none; margin-left:auto; background:#fff2; border:1px solid #ffffff44; color:#fff; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:13px;" onclick="document.getElementById('file-input').click()">📂 파일 열기</button>
+</header>
+
+<div id="drop-zone" class="drop-zone">
+  <div class="icon">📂</div>
+  <strong>results.jsonl 파일을 여기에 드래그하거나 클릭하세요</strong>
+  <p>DDI 배치 결과 JSONL 파일</p>
+  <input type="file" id="file-input" accept=".jsonl,.json">
+</div>
+
+<div id="main" style="display:none">
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="ID, 도메인, 레벨 검색…">
+    <select id="filter-status">
+      <option value="">전체 상태</option>
+      <option value="success">성공</option>
+      <option value="error">에러</option>
+      <option value="exception">예외</option>
+    </select>
+    <select id="filter-level">
+      <option value="">전체 레벨</option>
+      <option value="L1">L1</option>
+      <option value="L2">L2</option>
+      <option value="L3">L3</option>
+    </select>
+    <label><input type="checkbox" id="only-errors"> 에러만 보기</label>
+  </div>
+
+  <div class="table-wrap">
+    <table id="result-table">
+      <thead>
+        <tr>
+          <th data-col="id">아이템 ID <span class="sort-icon">↕</span></th>
+          <th data-col="status">상태 <span class="sort-icon">↕</span></th>
+          <th data-col="domain">도메인 <span class="sort-icon">↕</span></th>
+          <th data-col="preliminary_level">예측 레벨 <span class="sort-icon">↕</span></th>
+          <th data-col="ddi_calibrated">DDI 점수 <span class="sort-icon">↕</span></th>
+          <th data-col="ddi_auto">DDI Auto <span class="sort-icon">↕</span></th>
+          <th>상세</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p id="no-data">표시할 데이터가 없습니다</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" id="modal-close">✕</button>
+    <h2 id="modal-title">상세 정보</h2>
+    <pre id="modal-body"></pre>
+  </div>
+</div>
+
+<script>
+let allData = [];
+let sortCol = 'id';
+let sortAsc = true;
+
+// 파일 로드
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
+
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    allData = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    document.getElementById('drop-zone').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('open-btn').style.display = 'inline-block';
+    document.getElementById('header-info').textContent = file.name + ' · ' + allData.length + '건';
+    renderStats();
+    renderTable();
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function renderStats() {
+  const success = allData.filter(r => r._status === 'success').length;
+  const errors = allData.filter(r => r._status !== 'success').length;
+  const scores = allData.filter(r => r.ddi_calibrated).map(r => r.ddi_calibrated);
+  const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card info"><div class="label">전체</div><div class="value">${allData.length}</div></div>
+    <div class="stat-card success"><div class="label">성공</div><div class="value">${success}</div></div>
+    <div class="stat-card error"><div class="label">에러</div><div class="value">${errors}</div></div>
+    <div class="stat-card info"><div class="label">평균 DDI</div><div class="value">${avg}</div></div>
+  `;
+}
+
+function getVal(row, col) {
+  const v = row[col];
+  return v === undefined || v === null ? '' : v;
+}
+
+function renderTable() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const filterStatus = document.getElementById('filter-status').value;
+  const filterLevel = document.getElementById('filter-level').value;
+  const onlyErrors = document.getElementById('only-errors').checked;
+
+  let data = allData.filter(r => {
+    const id = (r.id || r.item_id || '').toLowerCase();
+    const domain = (r.domain || '').toLowerCase();
+    const level = (r.preliminary_level || '').toLowerCase();
+    if (search && !id.includes(search) && !domain.includes(search) && !level.includes(search)) return false;
+    if (filterStatus && r._status !== filterStatus) return false;
+    if (filterLevel && r.preliminary_level !== filterLevel) return false;
+    if (onlyErrors && r._status === 'success') return false;
+    return true;
+  });
+
+  data = data.sort((a, b) => {
+    let av = getVal(a, sortCol), bv = getVal(b, sortCol);
+    if (typeof av === 'number' && typeof bv === 'number') return sortAsc ? av - bv : bv - av;
+    return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+
+  const tbody = document.getElementById('tbody');
+  if (data.length === 0) {
+    tbody.innerHTML = '';
+    document.getElementById('no-data').style.display = 'block';
+    return;
+  }
+  document.getElementById('no-data').style.display = 'none';
+
+  tbody.innerHTML = data.map((r, i) => {
+    const id = r.id || r.item_id || '-';
+    const status = r._status || '-';
+    const domain = r.domain || '-';
+    const level = r.preliminary_level || '-';
+    const ddiC = r.ddi_calibrated != null ? r.ddi_calibrated.toFixed(1) : '-';
+    const ddiA = r.ddi_auto != null ? r.ddi_auto.toFixed(1) : '-';
+    const pct = r.ddi_calibrated != null ? Math.min(100, r.ddi_calibrated) : 0;
+    const isErr = status !== 'success';
+
+    return `<tr class="${isErr ? 'error-row' : ''}" data-idx="${allData.indexOf(r)}">
+      <td style="font-family:monospace;font-size:12px">${id}</td>
+      <td><span class="badge ${status}">${status}</span></td>
+      <td>${domain}</td>
+      <td>${level !== '-' ? `<span class="badge ${level}">${level}</span>` : '-'}</td>
+      <td>
+        ${ddiC !== '-' ? `<div class="ddi-bar">
+          <span style="min-width:36px">${ddiC}</span>
+          <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>` : '-'}
+      </td>
+      <td>${ddiA}</td>
+      <td><button class="detail-btn" onclick="showDetail(${allData.indexOf(r)})">보기</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// 정렬
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+    th.classList.add('sorted');
+    th.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
+    renderTable();
+  });
+});
+
+// 필터
+['search','filter-status','filter-level','only-errors'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderTable);
+  document.getElementById(id).addEventListener('change', renderTable);
+});
+
+// 상세 모달
+function showDetail(idx) {
+  const r = allData[idx];
+  document.getElementById('modal-title').textContent = r.id || r.item_id || '상세 정보';
+  document.getElementById('modal-body').textContent = JSON.stringify(r, null, 2);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+document.getElementById('modal-close').addEventListener('click', () => {
+  document.getElementById('modal-overlay').classList.remove('open');
+});
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+</script>
+</body>
+</html>
