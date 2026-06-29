@@ -26,6 +26,7 @@
 | `참조/ddi_results.jsonl` | DDI 엔진 출력 결과 샘플. |
 | `참조/ddi_demo_output.json` | DDI 데모 실행 결과 (DEMO-L3-EMAIL-001). |
 | `참조/ddi_viewer.html` | DDI 결과 시각화 뷰어. |
+| `converter.py` | 원데이터 → DDI 엔진 입력 변환기. 앵커 자동 생성 포함. |
 | `작업지시서_한국어능력평가벤치마크_문항출제.md` | 지침서를 요약한 실무용 작업지시파일. |
 
 ---
