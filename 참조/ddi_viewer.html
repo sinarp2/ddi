@@ -10,13 +10,24 @@
   header {
     background: #1a1a2e;
     color: #fff;
-    padding: 16px 24px;
+    padding: 14px 24px;
     display: flex;
     align-items: center;
     gap: 16px;
   }
   header h1 { font-size: 18px; font-weight: 600; }
   header span { font-size: 13px; color: #aaa; }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; }
+  .header-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .header-btn:hover { background: rgba(255,255,255,0.2); }
 
   .drop-zone {
     margin: 32px auto;
@@ -29,36 +40,58 @@
     background: #fff;
     transition: border-color 0.2s, background 0.2s;
   }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: #4f8ef7;
-    background: #f0f5ff;
-  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #4f8ef7; background: #f0f5ff; }
   .drop-zone p { color: #666; margin-top: 8px; font-size: 14px; }
   .drop-zone .icon { font-size: 40px; }
   #file-input { display: none; }
 
+  /* 통계 카드 */
   .stats {
     display: flex;
-    gap: 12px;
-    padding: 0 24px 16px;
+    gap: 10px;
+    padding: 16px 24px 8px;
     flex-wrap: wrap;
   }
   .stat-card {
     background: #fff;
     border-radius: 8px;
-    padding: 12px 20px;
-    min-width: 120px;
+    padding: 10px 18px;
+    min-width: 110px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   }
   .stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
-  .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 2px; }
-  .stat-card.success .value { color: #22a06b; }
-  .stat-card.error .value { color: #e53e3e; }
-  .stat-card.info .value { color: #4f8ef7; }
+  .stat-card .value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+  .stat-card.blue .value   { color: #4f8ef7; }
+  .stat-card.green .value  { color: #22a06b; }
+  .stat-card.red .value    { color: #e53e3e; }
+  .stat-card.orange .value { color: #d97706; }
+  .stat-card.purple .value { color: #7c3aed; }
 
+  /* 도메인별 통계 */
+  .domain-stats {
+    padding: 0 24px 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .domain-chip {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .domain-chip .d-name { color: #555; }
+  .domain-chip .d-count { font-weight: 700; color: #1a1a2e; }
+  .domain-chip .d-avg { color: #4f8ef7; font-size: 11px; }
+
+  /* 컨트롤 */
   .controls {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     padding: 0 24px 12px;
     align-items: center;
     flex-wrap: wrap;
@@ -68,7 +101,7 @@
     border-radius: 6px;
     padding: 7px 12px;
     font-size: 14px;
-    width: 220px;
+    width: 200px;
   }
   .controls select {
     border: 1px solid #ddd;
@@ -76,12 +109,21 @@
     padding: 7px 10px;
     font-size: 14px;
   }
-  .controls label { font-size: 13px; color: #555; }
-
-  .table-wrap {
-    padding: 0 24px 32px;
-    overflow-x: auto;
+  .controls label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 4px; }
+  .csv-btn {
+    margin-left: auto;
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
   }
+  .csv-btn:hover { background: #2d2d50; }
+
+  /* 테이블 */
+  .table-wrap { padding: 0 24px 32px; overflow-x: auto; }
   table {
     width: 100%;
     border-collapse: collapse;
@@ -94,7 +136,7 @@
   th {
     background: #1a1a2e;
     color: #ccc;
-    padding: 10px 14px;
+    padding: 10px 12px;
     text-align: left;
     font-weight: 500;
     cursor: pointer;
@@ -104,7 +146,7 @@
   th:hover { color: #fff; }
   th .sort-icon { margin-left: 4px; opacity: 0.5; }
   th.sorted .sort-icon { opacity: 1; color: #4f8ef7; }
-  td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #f8f9ff; }
   tr.error-row td { background: #fff5f5; }
@@ -117,30 +159,36 @@
     font-size: 11px;
     font-weight: 600;
   }
-  .badge.success { background: #e6f7f0; color: #22a06b; }
-  .badge.error { background: #fff0f0; color: #e53e3e; }
+  .badge.success   { background: #e6f7f0; color: #22a06b; }
+  .badge.error     { background: #fff0f0; color: #e53e3e; }
   .badge.exception { background: #fff3cd; color: #856404; }
   .badge.L1 { background: #e8f4fd; color: #2563eb; }
   .badge.L2 { background: #fef3c7; color: #d97706; }
   .badge.L3 { background: #fde8e8; color: #dc2626; }
+  .badge.warn { background: #fff3cd; color: #92400e; font-size: 10px; }
+  .badge.panel-on  { background: #ede9fe; color: #7c3aed; font-size: 10px; }
+  .badge.panel-off { background: #f3f4f6; color: #9ca3af; font-size: 10px; }
 
-  .ddi-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .ddi-bar { display: flex; align-items: center; gap: 6px; }
   .ddi-bar .bar-bg {
-    width: 80px;
-    height: 6px;
-    background: #eee;
-    border-radius: 3px;
-    overflow: hidden;
+    width: 70px; height: 6px;
+    background: #eee; border-radius: 3px; overflow: hidden;
   }
   .ddi-bar .bar-fill {
-    height: 100%;
-    border-radius: 3px;
+    height: 100%; border-radius: 3px;
     background: linear-gradient(90deg, #22a06b, #f59e0b, #ef4444);
   }
+
+  .conf-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .conf-high { background: #e6f7f0; color: #22a06b; }
+  .conf-mid  { background: #fef3c7; color: #d97706; }
+  .conf-low  { background: #fff0f0; color: #e53e3e; }
 
   .detail-btn {
     background: none;
@@ -153,7 +201,9 @@
   }
   .detail-btn:hover { background: #f0f0f0; }
 
-  /* Modal */
+  #no-data { display: none; text-align: center; padding: 40px; color: #888; }
+
+  /* 모달 */
   .modal-overlay {
     display: none;
     position: fixed;
@@ -168,32 +218,92 @@
     background: #fff;
     border-radius: 12px;
     padding: 24px;
-    max-width: 700px;
+    max-width: 780px;
     width: 95%;
-    max-height: 85vh;
+    max-height: 88vh;
     overflow-y: auto;
   }
-  .modal h2 { font-size: 16px; margin-bottom: 16px; color: #1a1a2e; }
-  .modal pre {
-    background: #f5f6fa;
-    border-radius: 6px;
-    padding: 14px;
-    font-size: 12px;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
   }
+  .modal-header h2 { font-size: 15px; color: #1a1a2e; font-family: monospace; }
   .modal-close {
-    float: right;
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: #888;
-    line-height: 1;
+    background: none; border: none;
+    font-size: 20px; cursor: pointer; color: #888; line-height: 1; flex-shrink: 0;
   }
 
-  #no-data { display: none; text-align: center; padding: 40px; color: #888; }
+  /* 요인 차트 */
+  .factor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .factor-row { display: flex; align-items: center; gap: 8px; }
+  .factor-label {
+    width: 52px; font-size: 12px; font-weight: 600;
+    color: #1a1a2e; text-align: right; flex-shrink: 0;
+  }
+  .factor-bar-bg {
+    flex: 1; height: 14px; background: #f0f0f0;
+    border-radius: 4px; overflow: hidden;
+  }
+  .factor-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .factor-val { font-size: 12px; color: #555; width: 36px; flex-shrink: 0; }
+  .factor-conf { font-size: 10px; color: #aaa; width: 28px; flex-shrink: 0; }
+  .factor-na { font-size: 11px; color: #bbb; font-style: italic; }
+
+  .modal-section { margin-bottom: 14px; }
+  .modal-section-title {
+    font-size: 11px; font-weight: 600;
+    color: #888; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0; padding-bottom: 4px;
+  }
+
+  .score-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .score-box {
+    background: #f5f6fa;
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .score-box .s-label { font-size: 10px; color: #888; }
+  .score-box .s-val { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+
+  .warnings-list { list-style: none; }
+  .warnings-list li {
+    font-size: 12px; color: #856404;
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding: 5px 10px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 4px;
+  }
+
+  .raw-toggle {
+    font-size: 12px; color: #4f8ef7;
+    cursor: pointer; margin-top: 8px; display: inline-block;
+  }
+  .raw-pre {
+    background: #f5f6fa; border-radius: 6px;
+    padding: 12px; font-size: 11px;
+    overflow-x: auto; white-space: pre-wrap;
+    word-break: break-all; display: none;
+    margin-top: 8px;
+  }
 </style>
 </head>
 <body>
@@ -201,7 +311,9 @@
 <header>
   <h1>DDI 결과 뷰어</h1>
   <span id="header-info"></span>
-  <button id="open-btn" style="display:none; margin-left:auto; background:#fff2; border:1px solid #ffffff44; color:#fff; border-radius:6px; padding:6px 14px; cursor:pointer; font-size:13px;" onclick="document.getElementById('file-input').click()">📂 파일 열기</button>
+  <div class="header-actions">
+    <button class="header-btn" id="open-btn" style="display:none" onclick="document.getElementById('file-input').click()">📂 파일 열기</button>
+  </div>
 </header>
 
 <div id="drop-zone" class="drop-zone">
@@ -213,34 +325,42 @@
 
 <div id="main" style="display:none">
   <div class="stats" id="stats"></div>
+  <div class="domain-stats" id="domain-stats"></div>
 
   <div class="controls">
     <input type="text" id="search" placeholder="ID, 도메인, 레벨 검색…">
-    <select id="filter-status">
-      <option value="">전체 상태</option>
-      <option value="success">성공</option>
-      <option value="error">에러</option>
-      <option value="exception">예외</option>
-    </select>
     <select id="filter-level">
       <option value="">전체 레벨</option>
       <option value="L1">L1</option>
       <option value="L2">L2</option>
       <option value="L3">L3</option>
     </select>
-    <label><input type="checkbox" id="only-errors"> 에러만 보기</label>
+    <select id="filter-domain">
+      <option value="">전체 도메인</option>
+    </select>
+    <select id="filter-status">
+      <option value="">전체 상태</option>
+      <option value="success">성공</option>
+      <option value="error">에러/예외</option>
+    </select>
+    <label><input type="checkbox" id="only-warnings"> 경고 있는 문항만</label>
+    <button class="csv-btn" onclick="exportCSV()">⬇ CSV 내보내기</button>
   </div>
 
   <div class="table-wrap">
     <table id="result-table">
       <thead>
         <tr>
-          <th data-col="id">아이템 ID <span class="sort-icon">↕</span></th>
-          <th data-col="status">상태 <span class="sort-icon">↕</span></th>
+          <th data-col="item_id">아이템 ID <span class="sort-icon">↕</span></th>
+          <th data-col="preliminary_level">레벨 <span class="sort-icon">↕</span></th>
           <th data-col="domain">도메인 <span class="sort-icon">↕</span></th>
-          <th data-col="preliminary_level">예측 레벨 <span class="sort-icon">↕</span></th>
-          <th data-col="ddi_calibrated">DDI 점수 <span class="sort-icon">↕</span></th>
+          <th data-col="ddi_calibrated">DDI (보정) <span class="sort-icon">↕</span></th>
+          <th data-col="ddi_clean">DDI Clean <span class="sort-icon">↕</span></th>
           <th data-col="ddi_auto">DDI Auto <span class="sort-icon">↕</span></th>
+          <th data-col="confidence">신뢰도 <span class="sort-icon">↕</span></th>
+          <th>패널</th>
+          <th>경고</th>
+          <th>상태</th>
           <th>상세</th>
         </tr>
       </thead>
@@ -250,31 +370,40 @@
   </div>
 </div>
 
+<!-- 상세 모달 -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
-    <button class="modal-close" id="modal-close">✕</button>
-    <h2 id="modal-title">상세 정보</h2>
-    <pre id="modal-body"></pre>
+    <div class="modal-header">
+      <h2 id="modal-title"></h2>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div id="modal-body"></div>
   </div>
 </div>
 
 <script>
 let allData = [];
-let sortCol = 'id';
+let sortCol = 'item_id';
 let sortAsc = true;
 
-// 파일 로드
+const COMPONENTS = ['R','C','K','P','E','O','X','Ddist','M','Q'];
+const COMP_NAMES = {
+  R:'Reasoning', C:'Context', K:'Korean', P:'Pragmatics',
+  E:'External', O:'Openness', X:'Constraint', Ddist:'Distractor', M:'Multi', Q:'Clarity'
+};
+const COMP_COLORS = {
+  R:'#4f8ef7', C:'#22a06b', K:'#f59e0b', P:'#ef4444',
+  E:'#8b5cf6', O:'#06b6d4', X:'#ec4899', Ddist:'#f97316', M:'#84cc16', Q:'#6366f1'
+};
+
+// ── 파일 로드 ──────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  loadFile(e.dataTransfer.files[0]);
-});
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => loadFile(e.target.files[0]));
 
 function loadFile(file) {
@@ -283,30 +412,72 @@ function loadFile(file) {
   reader.onload = e => {
     const lines = e.target.result.split('\n').filter(l => l.trim());
     allData = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    // 정규화
+    allData.forEach(r => {
+      if (!r.item_id && r.id) r.item_id = r.id;
+      r._hasWarning = Array.isArray(r.warnings) && r.warnings.length > 0;
+      r._panelUsed = r.panel_info && r.panel_info.panel_used;
+      r._isError = !!r.error;
+    });
     document.getElementById('drop-zone').style.display = 'none';
     document.getElementById('main').style.display = 'block';
     document.getElementById('open-btn').style.display = 'inline-block';
     document.getElementById('header-info').textContent = file.name + ' · ' + allData.length + '건';
+    populateDomainFilter();
     renderStats();
     renderTable();
   };
   reader.readAsText(file, 'utf-8');
 }
 
-function renderStats() {
-  const success = allData.filter(r => r._status === 'success').length;
-  const errors = allData.filter(r => r._status !== 'success').length;
-  const scores = allData.filter(r => r.ddi_calibrated).map(r => r.ddi_calibrated);
-  const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
-
-  document.getElementById('stats').innerHTML = `
-    <div class="stat-card info"><div class="label">전체</div><div class="value">${allData.length}</div></div>
-    <div class="stat-card success"><div class="label">성공</div><div class="value">${success}</div></div>
-    <div class="stat-card error"><div class="label">에러</div><div class="value">${errors}</div></div>
-    <div class="stat-card info"><div class="label">평균 DDI</div><div class="value">${avg}</div></div>
-  `;
+// ── 도메인 필터 옵션 생성 ──────────────────────────
+function populateDomainFilter() {
+  const domains = [...new Set(allData.map(r => r.domain).filter(Boolean))].sort();
+  const sel = document.getElementById('filter-domain');
+  sel.innerHTML = '<option value="">전체 도메인</option>' +
+    domains.map(d => `<option value="${d}">${d}</option>`).join('');
 }
 
+// ── 통계 카드 ──────────────────────────────────────
+function renderStats() {
+  const ok = allData.filter(r => !r._isError);
+  const err = allData.filter(r => r._isError);
+  const scores = ok.map(r => r.ddi_calibrated).filter(v => v != null);
+  const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '-';
+  const warnCount = ok.filter(r => r._hasWarning).length;
+  const panelCount = ok.filter(r => r._panelUsed).length;
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card blue"><div class="label">전체</div><div class="value">${allData.length}</div></div>
+    <div class="stat-card green"><div class="label">성공</div><div class="value">${ok.length}</div></div>
+    <div class="stat-card red"><div class="label">에러</div><div class="value">${err.length}</div></div>
+    <div class="stat-card blue"><div class="label">평균 DDI</div><div class="value">${avg}</div></div>
+    <div class="stat-card orange"><div class="label">경고 있는 문항</div><div class="value">${warnCount}</div></div>
+    <div class="stat-card purple"><div class="label">Qwen 패널</div><div class="value">${panelCount}</div></div>
+  `;
+
+  // 도메인별 통계
+  const byDomain = {};
+  ok.forEach(r => {
+    if (!r.domain) return;
+    if (!byDomain[r.domain]) byDomain[r.domain] = { count: 0, sum: 0 };
+    byDomain[r.domain].count++;
+    if (r.ddi_calibrated != null) byDomain[r.domain].sum += r.ddi_calibrated;
+  });
+  const chips = Object.entries(byDomain)
+    .sort((a,b) => b[1].count - a[1].count)
+    .map(([d, info]) => {
+      const avg = (info.sum / info.count).toFixed(1);
+      return `<div class="domain-chip">
+        <span class="d-name">${d}</span>
+        <span class="d-count">${info.count}건</span>
+        <span class="d-avg">avg ${avg}</span>
+      </div>`;
+    }).join('');
+  document.getElementById('domain-stats').innerHTML = chips;
+}
+
+// ── 테이블 렌더링 ──────────────────────────────────
 function getVal(row, col) {
   const v = row[col];
   return v === undefined || v === null ? '' : v;
@@ -316,16 +487,19 @@ function renderTable() {
   const search = document.getElementById('search').value.toLowerCase();
   const filterStatus = document.getElementById('filter-status').value;
   const filterLevel = document.getElementById('filter-level').value;
-  const onlyErrors = document.getElementById('only-errors').checked;
+  const filterDomain = document.getElementById('filter-domain').value;
+  const onlyWarnings = document.getElementById('only-warnings').checked;
 
   let data = allData.filter(r => {
-    const id = (r.id || r.item_id || '').toLowerCase();
+    const id = (r.item_id || '').toLowerCase();
     const domain = (r.domain || '').toLowerCase();
     const level = (r.preliminary_level || '').toLowerCase();
     if (search && !id.includes(search) && !domain.includes(search) && !level.includes(search)) return false;
-    if (filterStatus && r._status !== filterStatus) return false;
     if (filterLevel && r.preliminary_level !== filterLevel) return false;
-    if (onlyErrors && r._status === 'success') return false;
+    if (filterDomain && r.domain !== filterDomain) return false;
+    if (filterStatus === 'success' && r._isError) return false;
+    if (filterStatus === 'error' && !r._isError) return false;
+    if (onlyWarnings && !r._hasWarning) return false;
     return true;
   });
 
@@ -336,41 +510,55 @@ function renderTable() {
   });
 
   const tbody = document.getElementById('tbody');
-  if (data.length === 0) {
-    tbody.innerHTML = '';
-    document.getElementById('no-data').style.display = 'block';
-    return;
-  }
-  document.getElementById('no-data').style.display = 'none';
+  document.getElementById('no-data').style.display = data.length === 0 ? 'block' : 'none';
+  if (data.length === 0) { tbody.innerHTML = ''; return; }
 
-  tbody.innerHTML = data.map((r, i) => {
-    const id = r.id || r.item_id || '-';
-    const status = r._status || '-';
-    const domain = r.domain || '-';
+  tbody.innerHTML = data.map(r => {
+    const id = r.item_id || '-';
     const level = r.preliminary_level || '-';
+    const domain = r.domain || '-';
     const ddiC = r.ddi_calibrated != null ? r.ddi_calibrated.toFixed(1) : '-';
+    const ddiCl = r.ddi_clean != null ? r.ddi_clean.toFixed(1) : '-';
     const ddiA = r.ddi_auto != null ? r.ddi_auto.toFixed(1) : '-';
+    const conf = r.confidence != null ? r.confidence : null;
     const pct = r.ddi_calibrated != null ? Math.min(100, r.ddi_calibrated) : 0;
-    const isErr = status !== 'success';
 
-    return `<tr class="${isErr ? 'error-row' : ''}" data-idx="${allData.indexOf(r)}">
+    const confHtml = conf != null
+      ? `<span class="conf-pill ${conf >= 0.7 ? 'conf-high' : conf >= 0.5 ? 'conf-mid' : 'conf-low'}">${(conf * 100).toFixed(0)}%</span>`
+      : '-';
+    const panelHtml = r._panelUsed != null
+      ? `<span class="badge ${r._panelUsed ? 'panel-on' : 'panel-off'}">${r._panelUsed ? 'Qwen' : 'rule'}</span>`
+      : '-';
+    const warnHtml = r._hasWarning
+      ? `<span class="badge warn">⚠ ${r.warnings.length}</span>`
+      : '';
+    const statusHtml = r._isError
+      ? `<span class="badge error">에러</span>`
+      : `<span class="badge success">성공</span>`;
+
+    const idx = allData.indexOf(r);
+    return `<tr class="${r._isError ? 'error-row' : ''}">
       <td style="font-family:monospace;font-size:12px">${id}</td>
-      <td><span class="badge ${status}">${status}</span></td>
-      <td>${domain}</td>
       <td>${level !== '-' ? `<span class="badge ${level}">${level}</span>` : '-'}</td>
+      <td style="font-size:12px">${domain}</td>
       <td>
         ${ddiC !== '-' ? `<div class="ddi-bar">
-          <span style="min-width:36px">${ddiC}</span>
+          <span style="min-width:34px;font-size:12px">${ddiC}</span>
           <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
         </div>` : '-'}
       </td>
-      <td>${ddiA}</td>
-      <td><button class="detail-btn" onclick="showDetail(${allData.indexOf(r)})">보기</button></td>
+      <td style="font-size:12px;color:#555">${ddiCl}</td>
+      <td style="font-size:12px;color:#555">${ddiA}</td>
+      <td>${confHtml}</td>
+      <td>${panelHtml}</td>
+      <td>${warnHtml}</td>
+      <td>${statusHtml}</td>
+      <td><button class="detail-btn" onclick="showDetail(${idx})">보기</button></td>
     </tr>`;
   }).join('');
 }
 
-// 정렬
+// ── 정렬 ──────────────────────────────────────────
 document.querySelectorAll('th[data-col]').forEach(th => {
   th.addEventListener('click', () => {
     const col = th.dataset.col;
@@ -383,19 +571,132 @@ document.querySelectorAll('th[data-col]').forEach(th => {
   });
 });
 
-// 필터
-['search','filter-status','filter-level','only-errors'].forEach(id => {
-  document.getElementById(id).addEventListener('input', renderTable);
-  document.getElementById(id).addEventListener('change', renderTable);
+// ── 필터 이벤트 ────────────────────────────────────
+['search','filter-status','filter-level','filter-domain','only-warnings'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', renderTable);
+  el.addEventListener('change', renderTable);
 });
 
-// 상세 모달
+// ── CSV 내보내기 ────────────────────────────────────
+function exportCSV() {
+  const rows = allData.filter(r => !r._isError);
+  if (!rows.length) return alert('내보낼 데이터가 없습니다.');
+  const headers = ['item_id','domain','preliminary_level','ddi_calibrated','ddi_clean','ddi_auto','ddi_global','ddi_domain','question_clarity','confidence','calibration_source','panel_used','warnings',
+    ...COMPONENTS.map(c => c), ...COMPONENTS.map(c => c + '_conf')];
+  const lines = [headers.join(',')];
+  rows.forEach(r => {
+    const comps = r.components || {};
+    const row = [
+      r.item_id || '', r.domain || '', r.preliminary_level || '',
+      r.ddi_calibrated ?? '', r.ddi_clean ?? '', r.ddi_auto ?? '',
+      r.ddi_global ?? '', r.ddi_domain ?? '', r.question_clarity ?? '',
+      r.confidence ?? '', r.calibration_source || '',
+      r._panelUsed ? '1' : '0',
+      '"' + (r.warnings || []).join(' | ').replace(/"/g, '""') + '"',
+      ...COMPONENTS.map(c => comps[c] ? comps[c].value : ''),
+      ...COMPONENTS.map(c => comps[c] ? comps[c].confidence : ''),
+    ];
+    lines.push(row.join(','));
+  });
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ddi_results.csv';
+  a.click();
+}
+
+// ── 상세 모달 ──────────────────────────────────────
 function showDetail(idx) {
   const r = allData[idx];
-  document.getElementById('modal-title').textContent = r.id || r.item_id || '상세 정보';
-  document.getElementById('modal-body').textContent = JSON.stringify(r, null, 2);
+  document.getElementById('modal-title').textContent = r.item_id || '상세 정보';
+
+  let html = '';
+
+  // 점수 요약
+  html += `<div class="score-summary">
+    <div class="score-box"><div class="s-label">DDI 보정</div><div class="s-val" style="color:#1a1a2e">${r.ddi_calibrated != null ? r.ddi_calibrated.toFixed(2) : '-'}</div></div>
+    <div class="score-box"><div class="s-label">DDI Clean</div><div class="s-val" style="color:#4f8ef7">${r.ddi_clean != null ? r.ddi_clean.toFixed(2) : '-'}</div></div>
+    <div class="score-box"><div class="s-label">신뢰도</div><div class="s-val" style="color:${r.confidence >= 0.7 ? '#22a06b' : r.confidence >= 0.5 ? '#d97706' : '#e53e3e'}">${r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : '-'}</div></div>
+    <div class="score-box"><div class="s-label">레벨</div><div class="s-val">${r.preliminary_level || '-'}</div></div>
+  </div>`;
+
+  // 요인별 바 차트
+  if (r.components) {
+    html += `<div class="modal-section">
+      <div class="modal-section-title">요인별 점수 (10개 구성 요소)</div>
+      <div class="factor-grid">`;
+    COMPONENTS.forEach(c => {
+      const comp = r.components[c];
+      if (!comp) return;
+      if (!comp.applicable) {
+        html += `<div class="factor-row">
+          <div class="factor-label">${c}</div>
+          <span class="factor-na">해당 없음 (비객관식)</span>
+        </div>`;
+        return;
+      }
+      const pct = (comp.value * 100).toFixed(0);
+      const color = COMP_COLORS[c] || '#4f8ef7';
+      html += `<div class="factor-row" title="${COMP_NAMES[c]}: ${comp.value.toFixed(4)}">
+        <div class="factor-label">${c}</div>
+        <div class="factor-bar-bg">
+          <div class="factor-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="factor-val">${comp.value.toFixed(3)}</div>
+        <div class="factor-conf" title="신뢰도">${(comp.confidence * 100).toFixed(0)}%</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // 경고
+  if (r.warnings && r.warnings.length) {
+    html += `<div class="modal-section">
+      <div class="modal-section-title">⚠ 경고 (${r.warnings.length}개)</div>
+      <ul class="warnings-list">
+        ${r.warnings.map(w => `<li>${w}</li>`).join('')}
+      </ul>
+    </div>`;
+  }
+
+  // 패널 정보
+  if (r.panel_info) {
+    const pi = r.panel_info;
+    html += `<div class="modal-section">
+      <div class="modal-section-title">패널 정보</div>
+      <div style="font-size:13px;color:#555">
+        Qwen 패널: <strong>${pi.panel_used ? '사용됨' : '미사용 (규칙 전용)'}</strong>
+        ${pi.fallback ? ' · <span style="color:#e53e3e">폴백 발생</span>' : ''}
+        &nbsp;|&nbsp; 보정 출처: <strong>${r.calibration_source || 'none'}</strong>
+      </div>
+    </div>`;
+  }
+
+  // 증거 (evidence) — 컴포넌트별 첫 번째 요인
+  if (r.components) {
+    const evidences = COMPONENTS.flatMap(c => {
+      const comp = r.components[c];
+      return (comp && comp.evidence && comp.evidence.length)
+        ? comp.evidence.map(ev => `<span style="color:${COMP_COLORS[c]};font-weight:600">[${c}]</span> ${ev}`)
+        : [];
+    });
+    if (evidences.length) {
+      html += `<div class="modal-section">
+        <div class="modal-section-title">산출 근거 (Evidence)</div>
+        <div style="font-size:12px;line-height:1.8;color:#444">${evidences.join('<br>')}</div>
+      </div>`;
+    }
+  }
+
+  // Raw JSON 토글
+  html += `<span class="raw-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">▸ Raw JSON 보기</span>
+    <pre class="raw-pre">${JSON.stringify(r, null, 2)}</pre>`;
+
+  document.getElementById('modal-body').innerHTML = html;
   document.getElementById('modal-overlay').classList.add('open');
 }
+
 document.getElementById('modal-close').addEventListener('click', () => {
   document.getElementById('modal-overlay').classList.remove('open');
 });
